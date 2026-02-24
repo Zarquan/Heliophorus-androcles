@@ -1,0 +1,1260 @@
+#
+# <meta:header>
+#   <meta:licence>
+#     Copyright (c) 2026, Manchester (http://www.manchester.ac.uk/)
+#
+#     This information is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This information is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with this software. If not, see <http://www.gnu.org/licenses/>.
+#   </meta:licence>
+# </meta:header>
+#
+#zrq-notes-indent
+#
+# AIMetrics: [
+#     {
+#     "name": "ChatGPT",
+#     "model": "ChatGPT 5.2",
+#     "contribution": {
+#       "value": 95,
+#       "units": "%"
+#       }
+#     }
+#   ]
+#
+
+    Target:
+
+        Using ChatGPT to create the source code.
+
+    Result:
+
+        Success.
+
+# -----------------------------------------------------
+
+    ?   Can you create a shell script that invokes a subset of the file summarizing tools from the GNU coreutils library.
+    ?   See https://www.gnu.org/software/coreutils/
+    ?   
+    ?   The script should accept the following three paramaters:
+    ?   * HASH   - type of hash [sum, md5sum, shasum, sha256sum, sha512sum], default is 'sum'.
+    ?   * TARGET - location of the target file, defaults is '/target'
+    ?   * FORMAT - the output format, [native, json], defaults is 'json'
+    ?   
+    ?   If the FORMAT is 'json' the script should pipe the output of the summarizing tool through jc to convert it into json.
+    ?   e.g md5sum "${TARGET}" |  jc --hashsum
+    ?   See https://kellyjonbrazil.github.io/jc/docs/parsers/hashsum
+
+    >   Here’s a portable POSIX `sh` script that wraps a subset of GNU coreutils “file summarizing” hash tools and optionally converts the output to JSON via `jc --hashsum`.
+    >   
+    >   It supports:
+    >   
+    >   * `HASH`: `sum|md5sum|shasum|sha256sum|sha512sum` (default: `sum`)
+    >   * `TARGET`: path to file (default: `/target`)
+    >   * `FORMAT`: `native|json` (default: `json`)
+    >   
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash/sum command on a target file, optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) HASH   - sum|md5sum|shasum|sha256sum|sha512sum  (default: sum)
+    >   #   2) TARGET - path to file                           (default: /target)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Examples:
+    >   #   ./hashwrap.sh
+    >   #   ./hashwrap.sh md5sum /etc/hosts native
+    >   #   ./hashwrap.sh sha256sum ./myfile json
+    >   
+    >   set -eu
+    >   
+    >   HASH="${1:-sum}"
+    >   TARGET="${2:-/target}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate inputs
+    >   case "$HASH" in
+    >     sum|md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *) die "Invalid HASH '$HASH'. Allowed: sum, md5sum, shasum, sha256sum, sha512sum" ;;
+    >   esac
+    >   
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *) die "Invalid FORMAT '$FORMAT'. Allowed: native, json" ;;
+    >   esac
+    >   
+    >   # Basic target checks
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -f "$TARGET" ] || die "TARGET '$TARGET' is not a regular file"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure the hashing tool exists.
+    >   command -v "$HASH" >/dev/null 2>&1 || die "Command '$HASH' not found in PATH"
+    >   
+    >   # If JSON requested, require jc.
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   # Execute
+    >   if [ "$FORMAT" = "native" ]; then
+    >     # Native output from the tool.
+    >     "$HASH" -- "$TARGET"
+    >   else
+    >     # Convert output to JSON. The jc --hashsum parser expects typical hashsum output.
+    >     #
+    >     # Note: GNU 'sum' output format differs from md5sum/sha*sum; jc's hashsum parser
+    >     # is primarily intended for md5/sha-family output. If jc can't parse 'sum' output,
+    >     # you'll get an empty/failed parse depending on jc version.
+    >     "$HASH" -- "$TARGET" | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   ### Notes / behavior details
+    >   
+    >   * Uses `--` before the filename to avoid issues with targets that start with `-`.
+    >   * Errors are printed to `stderr` with exit code `2`.
+    >   * `FORMAT=json` requires `jc` to be installed and on `PATH`.
+    >   * `jc --hashsum` is designed for “hashsum-style” outputs (e.g., `md5sum`, `sha256sum`). GNU `sum` has a different output format; depending on your `jc` version it may not parse cleanly.
+    >   
+    >   If you want, I can adjust it to:
+    >   
+    >   * accept flags (e.g., `--hash`, `--target`, `--format`) instead of positional params, or
+    >   * normalize `shasum` to a specific algorithm (since `shasum` is not a GNU coreutils command and often defaults to SHA-1 unless `-a` is provided).
+
+    ?   Can you change the order of the parameters to make TARGET the first.
+    ?   Can you change the list of supported HASH options to remove 'sum'.
+
+    >   Below is the revised POSIX `sh` script with:
+    >   
+    >   * Parameter order changed so **TARGET is first**
+    >   * `sum` removed from supported `HASH` values
+    >   * Supported `HASH`: `md5sum|shasum|sha256sum|sha512sum`
+    >   * Defaults preserved:
+    >   
+    >     * `TARGET=/target`
+    >     * `HASH=md5sum`
+    >     * `FORMAT=json`
+    >   
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a GNU-style hash command on a target file,
+    >   # optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) TARGET - path to file                           (default: /target)
+    >   #   2) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Examples:
+    >   #   ./hashwrap.sh
+    >   #   ./hashwrap.sh /etc/hosts
+    >   #   ./hashwrap.sh /etc/hosts sha256sum
+    >   #   ./hashwrap.sh /etc/hosts sha512sum native
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${1:-/target}"
+    >   HASH="${2:-md5sum}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -f "$TARGET" ] || die "TARGET '$TARGET' is not a regular file"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure hash command exists
+    >   command -v "$HASH" >/dev/null 2>&1 || die "Command '$HASH' not found in PATH"
+    >   
+    >   # Ensure jc exists if JSON requested
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   # Execute
+    >   if [ "$FORMAT" = "native" ]; then
+    >     "$HASH" -- "$TARGET"
+    >   else
+    >     "$HASH" -- "$TARGET" | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   If you'd like, I can also tighten this further by normalizing `shasum` to a specific algorithm (e.g., always `shasum -a 1`) to eliminate ambiguity across platforms.
+
+    ?   Yes please, go ahead and normalize shasum to a specific algorithm
+
+    >   Done — I normalized `shasum` to **SHA-1** explicitly (`shasum -a 1`) so its behavior is consistent across environments.
+    >   
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash command on a target file, optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) TARGET - path to file                           (default: /target)
+    >   #   2) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Notes:
+    >   #   - 'shasum' is normalized to SHA-1 explicitly via: shasum -a 1
+    >   #
+    >   # Examples:
+    >   #   ./hashwrap.sh
+    >   #   ./hashwrap.sh /etc/hosts shasum json
+    >   #   ./hashwrap.sh /etc/hosts sha256sum native
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${1:-/target}"
+    >   HASH="${2:-md5sum}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -f "$TARGET" ] || die "TARGET '$TARGET' is not a regular file"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure tools exist
+    >   if [ "$HASH" = "shasum" ]; then
+    >     command -v shasum >/dev/null 2>&1 || die "Command 'shasum' not found in PATH"
+    >   else
+    >     command -v "$HASH" >/dev/null 2>&1 || die "Command '$HASH' not found in PATH"
+    >   fi
+    >   
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   # Build the command (normalize shasum -> SHA-1)
+    >   if [ "$HASH" = "shasum" ]; then
+    >     # Explicit SHA-1
+    >     CMD="shasum -a 1"
+    >   else
+    >     CMD="$HASH"
+    >   fi
+    >   
+    >   # Execute (use -- to protect filenames beginning with '-')
+    >   if [ "$FORMAT" = "native" ]; then
+    >     # shellcheck disable=SC2086
+    >     $CMD -- "$TARGET"
+    >   else
+    >     # shellcheck disable=SC2086
+    >     $CMD -- "$TARGET" | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   If you’d prefer normalizing `shasum` to **SHA-256** instead (common in modern policies), I can switch it to `shasum -a 256` and optionally drop `sha256sum` to avoid redundancy.
+
+    ?   Go ahead and normalize `shasum` to **SHA-256**, but leave `sha256sum` as an explicit option.
+
+    >   Below is the updated script with:
+    >   
+    >   * `TARGET` as first parameter
+    >   * `HASH` options: `md5sum|shasum|sha256sum|sha512sum`
+    >   * `shasum` explicitly normalized to **SHA-256** via `shasum -a 256`
+    >   * `sha256sum` retained as a distinct explicit option
+    >   * Default behavior unchanged (`TARGET=/target`, `HASH=md5sum`, `FORMAT=json`)
+    >   
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash command on a target file,
+    >   # optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) TARGET - path to file                           (default: /target)
+    >   #   2) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Notes:
+    >   #   - 'shasum' is normalized to SHA-256 via: shasum -a 256
+    >   #   - 'sha256sum' remains a separate explicit option
+    >   #
+    >   # Examples:
+    >   #   ./hashwrap.sh
+    >   #   ./hashwrap.sh /etc/hosts shasum json
+    >   #   ./hashwrap.sh /etc/hosts sha256sum native
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${1:-/target}"
+    >   HASH="${2:-md5sum}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -f "$TARGET" ] || die "TARGET '$TARGET' is not a regular file"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure required tools exist
+    >   case "$HASH" in
+    >     shasum)
+    >       command -v shasum >/dev/null 2>&1 || die "Command 'shasum' not found in PATH"
+    >       ;;
+    >     *)
+    >       command -v "$HASH" >/dev/null 2>&1 || die "Command '$HASH' not found in PATH"
+    >       ;;
+    >   esac
+    >   
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   # Build normalized command
+    >   if [ "$HASH" = "shasum" ]; then
+    >     CMD="shasum -a 256"
+    >   else
+    >     CMD="$HASH"
+    >   fi
+    >   
+    >   # Execute (protect filenames beginning with '-')
+    >   if [ "$FORMAT" = "native" ]; then
+    >     # shellcheck disable=SC2086
+    >     $CMD -- "$TARGET"
+    >   else
+    >     # shellcheck disable=SC2086
+    >     $CMD -- "$TARGET" | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   If you'd like, I can further refactor this to avoid `SC2086` suppression by eliminating dynamic command expansion entirely and using a `case` dispatch instead (more idiomatic and safer in strict shell environments).
+
+
+    ?   Can you create a dockerfile that wraps this script inside a container.
+
+    >   Below is a minimal container wrapper using **Alpine Linux** that bundles:
+    >   
+    >   * your `hashwrap.sh` script
+    >   * GNU coreutils (`md5sum`, `sha256sum`, `sha512sum`)
+    >   * `shasum` (normalized to SHA-256) via `perl-digest-sha`
+    >   * `jc` via `pip`
+    >   
+    >   ### `Dockerfile`
+    >   
+    >   ```dockerfile
+    >   # syntax=docker/dockerfile:1
+    >   FROM alpine:3.20
+    >   
+    >   # Install:
+    >   # - coreutils: md5sum/sha256sum/sha512sum
+    >   # - perl + perl-digest-sha: provides `shasum` script
+    >   # - python3 + pip: to install jc
+    >   RUN apk add --no-cache \
+    >         coreutils \
+    >         perl \
+    >         perl-digest-sha \
+    >         python3 \
+    >         py3-pip \
+    >       && pip3 install --no-cache-dir jc \
+    >       && adduser -D -H -u 10001 app
+    >   
+    >   WORKDIR /app
+    >   
+    >   # Copy the script into the image
+    >   COPY hashwrap.sh /usr/local/bin/hashwrap
+    >   RUN chmod +x /usr/local/bin/hashwrap
+    >   
+    >   USER app
+    >   
+    >   # Default: run the wrapper. You pass args as: TARGET HASH FORMAT
+    >   ENTRYPOINT ["/usr/local/bin/hashwrap"]
+    >   CMD ["/target", "md5sum", "json"]
+    >   ```
+    >   
+    >   ### Example build/run
+    >   
+    >   ```sh
+    >   docker build -t hashwrap:latest .
+    >   
+    >   # Hash a file by bind-mounting it to /target (default CMD expects /target):
+    >   docker run --rm -v "$PWD/myfile:/target:ro" hashwrap:latest
+    >   # -> JSON output (default: md5sum, json)
+    >   
+    >   # Explicit options:
+    >   docker run --rm -v "$PWD/myfile:/in:ro" hashwrap:latest /in sha256sum native
+    >   docker run --rm -v "$PWD/myfile:/in:ro" hashwrap:latest /in shasum json   # shasum -a 256
+    >   ```
+    >   
+    >   If you want, I can also provide a `docker-compose.yml` and/or adjust the image to run as a scratch/distroless-style minimal runtime (at the cost of giving up `shasum` and `jc` convenience).
+
+
+    podman build -t hashwrap:latest .
+
+    >   ....
+    >   ERROR: unable to select packages:
+    >     perl-digest-sha (no such package):
+    >       required by: world[perl-digest-sha]
+    >   ....
+
+
+    ?       Can you remove the dependency on the perl-digest-sha package.
+
+    >   Yes. Since `sha256sum` already provides SHA-256 functionality, we can eliminate the `perl-digest-sha` dependency entirely and internally map `shasum` → `sha256sum` inside the container.
+    >   
+    >   That way:
+    >   
+    >   * No Perl required
+    >   * No `perl-digest-sha`
+    >   * `shasum` remains a valid external interface option
+    >   * Behavior remains normalized to SHA-256
+    >   
+    >   Below is the revised **Dockerfile**.
+    >   
+    >   ---
+    >   
+    >   ## Dockerfile (No Perl / No `perl-digest-sha`)
+    >   
+    >   ```dockerfile
+    >   # syntax=docker/dockerfile:1
+    >   FROM alpine:3.20
+    >   
+    >   # Install:
+    >   # - coreutils: md5sum, sha256sum, sha512sum
+    >   # - python3 + pip: for jc
+    >   RUN apk add --no-cache \
+    >         coreutils \
+    >         python3 \
+    >         py3-pip \
+    >       && pip3 install --no-cache-dir jc \
+    >       && adduser -D -H -u 10001 app
+    >   
+    >   WORKDIR /app
+    >   
+    >   # Copy script
+    >   COPY hashwrap.sh /usr/local/bin/hashwrap
+    >   RUN chmod +x /usr/local/bin/hashwrap
+    >   
+    >   USER app
+    >   
+    >   ENTRYPOINT ["/usr/local/bin/hashwrap"]
+    >   CMD ["/target", "md5sum", "json"]
+    >   ```
+    >   
+    >   ---
+    >   
+    >   ## Required Script Adjustment (Important)
+    >   
+    >   Since `shasum` is no longer installed, update your script’s dispatch logic to normalize:
+    >   
+    >   ```
+    >   shasum  →  sha256sum
+    >   ```
+    >   
+    >   Replace the command construction section with this safer dispatch (no dynamic eval, no SC2086 suppression):
+    >   
+    >   ```sh
+    >   # Execute (protect filenames beginning with '-')
+    >   run_hash() {
+    >     case "$HASH" in
+    >       md5sum)
+    >         md5sum -- "$TARGET"
+    >         ;;
+    >       sha256sum)
+    >         sha256sum -- "$TARGET"
+    >         ;;
+    >       sha512sum)
+    >         sha512sum -- "$TARGET"
+    >         ;;
+    >       shasum)
+    >         # Normalized to SHA-256 using coreutils
+    >         sha256sum -- "$TARGET"
+    >         ;;
+    >     esac
+    >   }
+    >   
+    >   if [ "$FORMAT" = "native" ]; then
+    >     run_hash
+    >   else
+    >     run_hash | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   You can also simplify the `command -v` validation to remove the `shasum` branch entirely.
+    >   
+    >   ---
+    >   
+    >   ## Resulting Container Characteristics
+    >   
+    >   * Smaller image footprint
+    >   * No Perl runtime
+    >   * No duplicate SHA-256 implementation
+    >   * Deterministic behavior across environments
+    >   * Cleaner dependency graph
+    >   
+    >   ---
+    >   
+    >   If you'd like, I can also:
+    >   
+    >   * Reduce the image further (multi-stage build + venv copy)
+    >   * Switch to `python:alpine` base
+    >   * Or convert this to a fully minimal distroless image with a static `jc` build
+
+
+    ?       Can you show me the updated shell script.
+
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash command on a target file, optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) TARGET - path to file                           (default: /target)
+    >   #   2) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Notes:
+    >   #   - 'shasum' is normalized to SHA-256 by dispatching to `sha256sum`.
+    >   #
+    >   # Examples:
+    >   #   ./hashwrap.sh
+    >   #   ./hashwrap.sh /etc/hosts shasum json     # uses sha256sum under the hood
+    >   #   ./hashwrap.sh /etc/hosts sha256sum native
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${1:-/target}"
+    >   HASH="${2:-md5sum}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -f "$TARGET" ] || die "TARGET '$TARGET' is not a regular file"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure required tools exist
+    >   command -v md5sum >/dev/null 2>&1 || die "Command 'md5sum' not found in PATH"
+    >   command -v sha256sum >/dev/null 2>&1 || die "Command 'sha256sum' not found in PATH"
+    >   command -v sha512sum >/dev/null 2>&1 || die "Command 'sha512sum' not found in PATH"
+    >   
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   run_hash() {
+    >     case "$HASH" in
+    >       md5sum)
+    >         md5sum -- "$TARGET"
+    >         ;;
+    >       sha256sum)
+    >         sha256sum -- "$TARGET"
+    >         ;;
+    >       sha512sum)
+    >         sha512sum -- "$TARGET"
+    >         ;;
+    >       shasum)
+    >         # Normalized to SHA-256 using coreutils
+    >         sha256sum -- "$TARGET"
+    >         ;;
+    >     esac
+    >   }
+    >   
+    >   if [ "$FORMAT" = "native" ]; then
+    >     run_hash
+    >   else
+    >     run_hash | jc --hashsum
+    >   fi
+    >   ```
+
+    ?       Can you change the TARGET validation check to allow TARGET to point to a directory.
+
+    >   Below is the updated script with `TARGET` validation modified to allow:
+    >   
+    >   * A regular file
+    >   * **A directory**
+    >   * Still must exist and be readable
+    >   
+    >   Since GNU `*sum` utilities do not hash directories directly, this version implements:
+    >   
+    >   * **File** → hash directly
+    >   * **Directory** → recursively hash all regular files (deterministic order via `find | sort`)
+    >   
+    >   This preserves deterministic behavior inside containers and across platforms.
+    >   
+    >   ---
+    >   
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash command on a target file or directory,
+    >   # optionally emitting JSON via jc.
+    >   #
+    >   # Parameters (positional):
+    >   #   1) TARGET - path to file or directory              (default: /target)
+    >   #   2) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   3) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Notes:
+    >   #   - 'shasum' is normalized to SHA-256 (via sha256sum).
+    >   #   - If TARGET is a directory, all regular files are hashed recursively
+    >   #     in sorted order for deterministic output.
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${1:-/target}"
+    >   HASH="${2:-md5sum}"
+    >   FORMAT="${3:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET (allow file or directory)
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure required tools exist
+    >   command -v md5sum >/dev/null 2>&1 || die "md5sum not found"
+    >   command -v sha256sum >/dev/null 2>&1 || die "sha256sum not found"
+    >   command -v sha512sum >/dev/null 2>&1 || die "sha512sum not found"
+    >   command -v find >/dev/null 2>&1 || die "find not found"
+    >   command -v sort >/dev/null 2>&1 || die "sort not found"
+    >   
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   run_hash() {
+    >     hash_cmd() {
+    >       case "$HASH" in
+    >         md5sum)    md5sum -- "$1" ;;
+    >         sha256sum) sha256sum -- "$1" ;;
+    >         sha512sum) sha512sum -- "$1" ;;
+    >         shasum)    sha256sum -- "$1" ;;  # normalized
+    >       esac
+    >     }
+    >   
+    >     if [ -f "$TARGET" ]; then
+    >       hash_cmd "$TARGET"
+    >     elif [ -d "$TARGET" ]; then
+    >       # Recursively hash all regular files in sorted order
+    >       find "$TARGET" -type f -print | sort | while IFS= read -r file; do
+    >         hash_cmd "$file"
+    >       done
+    >     else
+    >       die "TARGET must be a regular file or directory"
+    >     fi
+    >   }
+    >   
+    >   if [ "$FORMAT" = "native" ]; then
+    >     run_hash
+    >   else
+    >     run_hash | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   ---
+    >   
+    >   ### Behavioral Notes
+    >   
+    >   * Directory traversal uses `find -type f` (regular files only).
+    >   * Sorting ensures deterministic output across runs.
+    >   * Output for directories is a sequence of hash lines (one per file).
+    >   * JSON output will be a JSON array (via `jc --hashsum`) when multiple files are processed.
+    >   
+    >   If you'd like, I can also:
+    >   
+    >   * Add support for hashing symlinks
+    >   * Add a single aggregate directory hash (Merkle-style)
+    >   * Exclude hidden files
+    >   * Add parallel hashing for large trees
+
+    #
+    # Run a test
+    podman build -t hashwrap:latest .
+
+    >   ....
+    >   error: externally-managed-environment
+    >   
+    >   × This environment is externally managed
+    >   ╰─>
+    >       The system-wide python installation should be maintained using the system
+    >       package manager (apk) only.
+    >   
+    >       If the package in question is not packaged already (and hence installable via
+    >       "apk add py3-somepackage"), please consider installing it inside a virtual
+    >   ....
+
+    ?   The docker build failes with this error.
+    ?   × This environment is externally managed
+    ?   ╰─>
+    ?       The system-wide python installation should be maintained using the system
+    ?       package manager (apk) only.
+    ?   
+    ?       If the package in question is not packaged already (and hence installable via
+    ?       "apk add py3-somepackage"), please consider installing it inside a virtual
+    ?   
+    ?   Is jc not available as an Apline package ?
+
+    >   Yes — your build is failing because Alpine enforces **PEP 668** (“externally managed environment”), which prevents `pip` from installing into the system Python.
+    >   
+    >   And yes: **`jc` *is* available as a native Alpine package**, so you do not need `pip` at all.
+    >   
+    >   You can confirm in Alpine’s package index that `jc` is packaged as:
+    >   
+    >   ```
+    >   jc
+    >   ```
+    >   
+    >   So the correct fix is simply to install it via `apk`.
+    >   
+    >   ---
+    >   
+    >   ## ✅ Corrected Dockerfile (No pip, No Python packaging issue)
+    >   
+    >   ```dockerfile
+    >   # syntax=docker/dockerfile:1
+    >   FROM alpine:3.20
+    >   
+    >   # Install:
+    >   # - coreutils: md5sum, sha256sum, sha512sum
+    >   # - jc: packaged natively in Alpine
+    >   RUN apk add --no-cache \
+    >         coreutils \
+    >         jc \
+    >       && adduser -D -H -u 10001 app
+    >   
+    >   WORKDIR /app
+    >   
+    >   COPY hashwrap.sh /usr/local/bin/hashwrap
+    >   RUN chmod +x /usr/local/bin/hashwrap
+    >   
+    >   USER app
+    >   
+    >   ENTRYPOINT ["/usr/local/bin/hashwrap"]
+    >   CMD ["/target", "md5sum", "json"]
+    >   ```
+    >   
+    >   ---
+    >   
+    >   ## Why This Works
+    >   
+    >   * `jc` in Alpine is packaged with its Python dependencies handled internally.
+    >   * No `pip`
+    >   * No PEP 668 conflict
+    >   * Smaller image
+    >   * Cleaner supply chain
+    >   
+    >   ---
+    >   
+    >   ## Quick Verification Inside Container
+    >   
+    >   After building:
+    >   
+    >   ```sh
+    >   docker build -t hashwrap .
+    >   docker run --rm hashwrap --help
+    >   ```
+    >   
+    >   Or test `jc`:
+    >   
+    >   ```sh
+    >   docker run --rm hashwrap sh -c "echo 'd41d8cd98f00b204e9800998ecf8427e  file' | jc --hashsum"
+    >   ```
+    >   
+    >   ---
+    >   
+    >   If you'd like, I can also:
+    >   
+    >   * Show how to pin exact Alpine + package versions for reproducible builds
+    >   * Add `--no-cache` build hygiene improvements
+    >   * Convert this to a multi-stage minimal runtime image
+
+
+    #
+    # Run a test
+    podman build -t hashwrap:latest .
+
+    >   ....
+    >   fetch https://dl-cdn.alpinelinux.org/alpine/v3.20/main/x86_64/APKINDEX.tar.gz
+    >   fetch https://dl-cdn.alpinelinux.org/alpine/v3.20/community/x86_64/APKINDEX.tar.gz
+    >   ERROR: unable to select packages:
+    >     jc (no such package):
+    >       required by: world[jc]
+    >   ....
+
+    #
+    # Turns out the jc package wasn't added to Alpine until version 3.21
+    # https://pkgs.alpinelinux.org/packages?name=jc&branch=v3.21&repo=&arch=x86_64&origin=&flagged=&maintainer=
+    # Manually changed the Alpine version to 3.23.
+
+
+    #
+    # Build the image ..
+    podman build -t hashwrap:latest .
+
+    >   ....
+    >   ....
+    >   Successfully tagged localhost/hashwrap:latest
+    >   4821a58e62cfbe4e9a52463b305776386ebe7af334112f29a82e254ca224757f
+
+
+    #
+    # Run a test ..
+    target='/data/archive/music/Enya/Watermark/01 - Watermark.ogg'
+
+    podman run --rm -v "${target:?}:/target:ro" hashwrap:latest
+
+    >   ERROR: TARGET '/target' does not exist
+
+    #
+    # Needs the SELinux relabelling.
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest
+
+    >   [{"filename":"/target","hash":"89b7e09c6528a9482002501915075593"}]
+
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest /target sha256sum
+
+    >   [{"filename":"/target","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+
+
+    target='/data/archive/music/Enya/Watermark'
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest /target sha256sum
+
+    >   [{"filename":"/target/01 - Watermark.ogg","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"},.... ]
+
+    target='/data/archive/music/Enya/Watermark'
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest /target sha256sum | jq '.'
+
+    >   [
+    >     {
+    >       "filename": "/target/01 - Watermark.ogg",
+    >       "hash": "0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"
+    >     },
+    >     ....
+    >     ....
+    >     ....
+    >     {
+    >       "filename": "/target/11 - Na Laetha Gael M'Óige.ogg",
+    >       "hash": "c76d282d5025d92d5313eb78ae281b63190ff496e69c335db18228a0e92ad317"
+    >     }
+    >   ]
+
+    ?   Can you change the script to remove the TARGET parameter, and pass it into the container as an environment variable instead.
+    ?   So the command to use the default /target directory would be:
+    ?   docker run --rm -v "${PWD}:/target:ro" hashwrap:latest sha256sum
+    ?   and the command to use a different target directory would be
+    ?   docker run --rm -e "TARGET=/path/to/target" -v "${PWD}:/path/to/target:ro" hashwrap:latest sha256sum
+
+    >   ```sh
+    >   #!/bin/sh
+    >   # hashwrap.sh - run a hash command on a target file or directory, optionally emitting JSON via jc.
+    >   #
+    >   # Environment:
+    >   #   TARGET - path to file or directory (default: /target)
+    >   #
+    >   # Parameters (positional):
+    >   #   1) HASH   - md5sum|shasum|sha256sum|sha512sum     (default: md5sum)
+    >   #   2) FORMAT - native|json                            (default: json)
+    >   #
+    >   # Notes:
+    >   #   - 'shasum' is normalized to SHA-256 by dispatching to `sha256sum`.
+    >   #   - If TARGET is a directory, all regular files are hashed recursively
+    >   #     in sorted order for deterministic output.
+    >   #
+    >   # Examples (container-style):
+    >   #   TARGET defaults to /target
+    >   #   hashwrap sha256sum
+    >   #
+    >   #   Override TARGET
+    >   #   TARGET=/some/path hashwrap sha256sum native
+    >   
+    >   set -eu
+    >   
+    >   TARGET="${TARGET:-/target}"
+    >   HASH="${1:-md5sum}"
+    >   FORMAT="${2:-json}"
+    >   
+    >   die() {
+    >     printf '%s\n' "ERROR: $*" >&2
+    >     exit 2
+    >   }
+    >   
+    >   # Validate HASH
+    >   case "$HASH" in
+    >     md5sum|shasum|sha256sum|sha512sum) ;;
+    >     *)
+    >       die "Invalid HASH '$HASH'. Allowed: md5sum, shasum, sha256sum, sha512sum"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate FORMAT
+    >   case "$FORMAT" in
+    >     native|json) ;;
+    >     *)
+    >       die "Invalid FORMAT '$FORMAT'. Allowed: native, json"
+    >       ;;
+    >   esac
+    >   
+    >   # Validate TARGET (allow file or directory)
+    >   [ -e "$TARGET" ] || die "TARGET '$TARGET' does not exist"
+    >   [ -r "$TARGET" ] || die "TARGET '$TARGET' is not readable"
+    >   
+    >   # Ensure required tools exist
+    >   command -v md5sum >/dev/null 2>&1 || die "md5sum not found"
+    >   command -v sha256sum >/dev/null 2>&1 || die "sha256sum not found"
+    >   command -v sha512sum >/dev/null 2>&1 || die "sha512sum not found"
+    >   command -v find >/dev/null 2>&1 || die "find not found"
+    >   command -v sort >/dev/null 2>&1 || die "sort not found"
+    >   
+    >   if [ "$FORMAT" = "json" ]; then
+    >     command -v jc >/dev/null 2>&1 || die "FORMAT=json requires 'jc' but it was not found in PATH"
+    >   fi
+    >   
+    >   hash_one() {
+    >     # $1 = path
+    >     case "$HASH" in
+    >       md5sum)    md5sum -- "$1" ;;
+    >       sha256sum) sha256sum -- "$1" ;;
+    >       sha512sum) sha512sum -- "$1" ;;
+    >       shasum)    sha256sum -- "$1" ;;  # normalized to SHA-256 without perl
+    >     esac
+    >   }
+    >   
+    >   run_hash() {
+    >     if [ -f "$TARGET" ]; then
+    >       hash_one "$TARGET"
+    >     elif [ -d "$TARGET" ]; then
+    >       # Recursively hash all regular files in sorted order
+    >       find "$TARGET" -type f -print | sort | while IFS= read -r file; do
+    >         hash_one "$file"
+    >       done
+    >     else
+    >       die "TARGET must be a regular file or directory"
+    >     fi
+    >   }
+    >   
+    >   if [ "$FORMAT" = "native" ]; then
+    >     run_hash
+    >   else
+    >     run_hash | jc --hashsum
+    >   fi
+    >   ```
+    >   
+    >   **Usage matches what you described:**
+    >   
+    >   * Default `/target`:
+    >   
+    >   ```sh
+    >   docker run --rm -v "${PWD}:/target:ro" hashwrap:latest sha256sum
+    >   ```
+    >   
+    >   * Override TARGET:
+    >   
+    >   ```sh
+    >   docker run --rm -e "TARGET=/path/to/target" -v "${PWD}:/path/to/target:ro" hashwrap:latest sha256sum
+    >   ```
+
+
+    #
+    # Build and test ...
+    podman build -t hashwrap:latest .
+
+    target='/data/archive/music/Enya/Watermark/01 - Watermark.ogg'
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest
+
+    >   ERROR: Invalid HASH '/target'. Allowed: md5sum, shasum, sha256sum, sha512sum
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest sha256sum
+
+    >   [{"filename":"/target","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+
+    ?   When invoked without the HASH parameter it returns an error
+    ?   docker run --rm -v "${PWD}:/target:ro" hashwrap:latest
+    ?   ERROR: Invalid HASH '/target'. Allowed: md5sum, shasum, sha256sum, sha512sum
+
+    >   You’re seeing that because your current image/entrypoint is effectively passing `/target` as the first argument to the script (so the script interprets it as `HASH`).
+    >   
+    >   Fix: make the **container’s default `CMD` provide a default hash**, and keep `ENTRYPOINT` as the script. Then running the container with no args uses the default hash; running with `sha256sum` overrides it.
+    >   
+    >   ## Updated Dockerfile
+    >   
+    >   ```dockerfile
+    >   # syntax=docker/dockerfile:1
+    >   FROM alpine:3.20
+    >   
+    >   RUN apk add --no-cache coreutils jc \
+    >     && adduser -D -H -u 10001 app
+    >   
+    >   WORKDIR /app
+    >   
+    >   COPY hashwrap.sh /usr/local/bin/hashwrap
+    >   RUN chmod +x /usr/local/bin/hashwrap
+    >   
+    >   USER app
+    >   
+    >   ENTRYPOINT ["/usr/local/bin/hashwrap"]
+    >   # Default args to the ENTRYPOINT:
+    >   #   HASH=md5sum, FORMAT=json
+    >   CMD ["md5sum", "json"]
+    >   ```
+    >   
+    >   With this:
+    >   
+    >   * No args → uses `CMD`:
+    >   
+    >     ```sh
+    >     docker run --rm -v "${PWD}:/target:ro" hashwrap:latest
+    >     ```
+    >   
+    >     (hashes with `md5sum`, outputs JSON)
+    >   
+    >   * Override HASH:
+    >   
+    >     ```sh
+    >     docker run --rm -v "${PWD}:/target:ro" hashwrap:latest sha256sum
+    >     ```
+    >   
+    >   * Override HASH + FORMAT:
+    >   
+    >     ```sh
+    >     docker run --rm -v "${PWD}:/target:ro" hashwrap:latest sha256sum native
+    >     ```
+    >   
+    >   ## Script (no change required, but here’s the correct arg contract reminder)
+    >   
+    >   * `TARGET` comes from env: `TARGET=/target` by default
+    >   * Positional args:
+    >   
+    >     * `$1` = `HASH` (default `md5sum`)
+    >     * `$2` = `FORMAT` (default `json`)
+    >   
+    >   So your script is fine; the issue is just the container default args wiring.
+
+
+    podman build -t hashwrap:latest .
+
+    target='/data/archive/music/Enya/Watermark/01 - Watermark.ogg'
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest md5sum
+
+    >   [{"filename":"/target","hash":"89b7e09c6528a9482002501915075593"}]
+
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest md5sux
+
+    >   ERROR: Invalid HASH 'md5sux'. Allowed: md5sum, shasum, sha256sum, sha512sum
+
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest shasum
+    >   [{"filename":"/target","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest sha256sum
+    >   [{"filename":"/target","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+
+
+    podman run --rm -v "${target:?}:/target:ro,z" hashwrap:latest sha512sum
+    >   [{"filename":"/target","hash":"e0ee48b2c556c4c20cca3b8851599543098c24acdd7e2e1aa1f52d1fba6eb90284cebccc0c14230a39266bacbc38a0e7156c7aa5bc74d33c13e068df9d8a99ec"}]
+
+    #
+    # Looks good.
+    # Now to add a build script.
+    #
+
+    ?   Can you write a GitHub workflow for this project that will automatically build a Docker image and publish it as a GitHub package.
+
+    >   Below is a solid, “standard” GitHub Actions workflow that builds your Docker image and publishes it to **GitHub Container Registry (GHCR)** as a GitHub Package.
+    >   
+    >   Create: `.github/workflows/docker-publish.yml`
+    >   
+    >   ```yaml
+    >   name: Build and publish Docker image
+    >   
+    >   on:
+    >     push:
+    >       branches: [ "main" ]
+    >       tags:
+    >         - "v*.*.*"
+    >     workflow_dispatch: {}
+    >   
+    >   permissions:
+    >     contents: read
+    >     packages: write
+    >   
+    >   env:
+    >     REGISTRY: ghcr.io
+    >     # Image name becomes: ghcr.io/<owner>/<repo>
+    >     IMAGE_NAME: ${{ github.repository }}
+    >   
+    >   jobs:
+    >     build-and-push:
+    >       runs-on: ubuntu-latest
+    >   
+    >       steps:
+    >         - name: Checkout
+    >           uses: actions/checkout@v4
+    >   
+    >         - name: Set up QEMU
+    >           uses: docker/setup-qemu-action@v3
+    >   
+    >         - name: Set up Docker Buildx
+    >           uses: docker/setup-buildx-action@v3
+    >   
+    >         - name: Log in to GHCR
+    >           uses: docker/login-action@v3
+    >           with:
+    >             registry: ${{ env.REGISTRY }}
+    >             username: ${{ github.actor }}
+    >             password: ${{ secrets.GITHUB_TOKEN }}
+    >   
+    >         - name: Extract image metadata (tags, labels)
+    >           id: meta
+    >           uses: docker/metadata-action@v5
+    >           with:
+    >             images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+    >             tags: |
+    >               # Tag like: 1.2.3 when pushing tag v1.2.3
+    >               type=semver,pattern={{version}}
+    >               # Tag like: 1.2 when pushing tag v1.2.3
+    >               type=semver,pattern={{major}}.{{minor}}
+    >               # Tag like: 1 when pushing tag v1.2.3
+    >               type=semver,pattern={{major}}
+    >               # Tag :latest only on main
+    >               type=raw,value=latest,enable={{is_default_branch}}
+    >               # Also tag the git SHA for traceability
+    >               type=sha
+    >   
+    >         - name: Build and push
+    >           uses: docker/build-push-action@v6
+    >           with:
+    >             context: .
+    >             file: ./Dockerfile
+    >             push: true
+    >             platforms: linux/amd64,linux/arm64
+    >             tags: ${{ steps.meta.outputs.tags }}
+    >             labels: ${{ steps.meta.outputs.labels }}
+    >             cache-from: type=gha
+    >             cache-to: type=gha,mode=max
+    >   ```
+    >   
+    >   ### What this does
+    >   
+    >   * On pushes to `main`: builds and pushes `:latest` and `:sha-...`
+    >   * On tags like `v1.2.3`: builds and pushes `:1.2.3`, `:1.2`, `:1`, and `:sha-...`
+    >   * Publishes to `ghcr.io/<OWNER>/<REPO>` using `GITHUB_TOKEN` with `packages: write` permissions ([GitHub Docs][1])
+    >   
+    >   ### Common gotcha (one-time repo setting)
+    >   
+    >   If your repo is configured with restrictive workflow permissions, make sure Actions can write packages (Repo Settings → Actions → General → Workflow permissions). ([GitHub Docs][2])
+    >   
+    >   If you tell me your default branch name (e.g. `main` vs `master`) and desired image name (repo name is usually fine), I can tailor the tags and naming exactly how you want.
+    >   
+    >   [1]: https://docs.github.com/actions/guides/publishing-docker-images?utm_source=chatgpt.com "Publishing Docker images"
+    >   [2]: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/enabling-features-for-your-repository/managing-github-actions-settings-for-a-repository?utm_source=chatgpt.com "Managing GitHub Actions settings for a repository"
+
+
