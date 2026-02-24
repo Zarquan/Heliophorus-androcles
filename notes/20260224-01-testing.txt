@@ -1,0 +1,353 @@
+#
+# <meta:header>
+#   <meta:licence>
+#     Copyright (c) 2026, Manchester (http://www.manchester.ac.uk/)
+#
+#     This information is free software: you can redistribute it and/or modify
+#     it under the terms of the GNU General Public License as published by
+#     the Free Software Foundation, either version 3 of the License, or
+#     (at your option) any later version.
+#
+#     This information is distributed in the hope that it will be useful,
+#     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#     GNU General Public License for more details.
+#
+#     You should have received a copy of the GNU General Public License
+#     along with this software. If not, see <http://www.gnu.org/licenses/>.
+#   </meta:licence>
+# </meta:header>
+#
+#zrq-notes-indent
+#
+# AIMetrics: []
+#
+
+    Target:
+
+        Success
+
+    Result:
+
+        Work in progress ...
+
+# -----------------------------------------------------
+
+    targetpath='/data/archive/music/Enya/Watermark'
+    targetfile='/data/archive/music/Enya/Watermark/01 - Watermark.ogg'
+
+    #
+    # Check it runs.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles
+
+--START--
+Trying to pull ghcr.io/zarquan/heliophorus-androcles:latest...
+Getting image source signatures
+Copying blob a432ba534b0b done   |
+Copying blob 69c3ce529e03 done   |
+Copying blob fd05278d51f0 done   |
+Copying blob 7ec8fabc6c30 done   |
+Copying blob 589002ba0eae skipped: already exists
+Copying blob 0dd7ddc6317e done   |
+Copying config 13a2c08b52 done   |
+Writing manifest to image destination
+--END--
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    #
+    # Run the latest version.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles:latest
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    #
+    # Run a specific version.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles:1
+
+--START--
+Trying to pull ghcr.io/zarquan/heliophorus-androcles:1...
+Getting image source signatures
+Copying blob a432ba534b0b skipped: already exists
+Copying blob 7ec8fabc6c30 skipped: already exists
+Copying blob fd05278d51f0 skipped: already exists
+Copying blob 69c3ce529e03 skipped: already exists
+Copying blob 0dd7ddc6317e skipped: already exists
+Copying blob 589002ba0eae skipped: already exists
+Copying config 13a2c08b52 done   |
+Writing manifest to image destination
+--END--
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    #
+    # Run a more detailed version number.
+    # (took a while for the ghcr.io repository to resolve this one)
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles:1.0
+
+--START--
+Trying to pull ghcr.io/zarquan/heliophorus-androcles:1.0...
+Getting image source signatures
+Copying blob a432ba534b0b skipped: already exists
+Copying blob 69c3ce529e03 skipped: already exists
+Copying blob fd05278d51f0 skipped: already exists
+Copying blob 0dd7ddc6317e skipped: already exists
+Copying blob 7ec8fabc6c30 skipped: already exists
+Copying blob 589002ba0eae skipped: already exists
+Copying config 13a2c08b52 done   |
+Writing manifest to image destination
+--END--
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    #
+    # Check it works on directories.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetpath:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles
+
+--START--
+[{"filename":"/input/01 - Watermark.ogg","hash":"89b7e09c6528a9482002501915075593"} ....}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetpath:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+        | jq '.'
+
+--START--
+[
+  {
+    "filename": "/input/01 - Watermark.ogg",
+    "hash": "89b7e09c6528a9482002501915075593"
+  },
+  {
+    "filename": "/input/02 - Cursum Perficio.ogg",
+    "hash": "1a8ea4d389e1f541a203bbe1af47889b"
+  },
+  {
+    "filename": "/input/03 - On Your Shore.ogg",
+    "hash": "3a55f2140fd307555bcf29df5c8a5400"
+  },
+  {
+    "filename": "/input/04 - Storms in Africa.ogg",
+    "hash": "b4482113f77db6dad9d695c4f8d7fd8a"
+  },
+  {
+    "filename": "/input/05 - Exile.ogg",
+    "hash": "99c8788adbd4a87748ffad13f6af29bd"
+  },
+  {
+    "filename": "/input/06 - Miss Clare Remembers.ogg",
+    "hash": "7501061e64aa63cd6b7210d564da37eb"
+  },
+  {
+    "filename": "/input/07 - Orinoco Flow.ogg",
+    "hash": "8b38afc1be377f8889c75d2c1381d2db"
+  },
+  {
+    "filename": "/input/08 - Evening Falls....ogg",
+    "hash": "4a6e8c957f5f70362117a4b54790b5e1"
+  },
+  {
+    "filename": "/input/09 - River.ogg",
+    "hash": "6444d49cd15d878a1bb1c4c7bb432032"
+  },
+  {
+    "filename": "/input/10 - The Longships.ogg",
+    "hash": "5344fe8266ee0f3cc7f1f19e44a06278"
+  },
+  {
+    "filename": "/input/11 - Na Laetha Gael M'Óige.ogg",
+    "hash": "8b907d2760fa4772488300b1c2430a3e"
+  }
+]
+--END--
+
+
+    #
+    # Check what hash algorithms are available.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            md5sum
+
+--START--
+[{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            shasum
+
+--START--
+[{"filename":"/input","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            sha256sum
+
+--START--
+[{"filename":"/input","hash":"0ab04c01765bbbfb75565c40f411a101e0e810d85b50e89915b364353ee31481"}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            sha512sum
+
+--START--
+[{"filename":"/input","hash":"e0ee48b2c556c4c20cca3b8851599543098c24acdd7e2e1aa1f52d1fba6eb90284cebccc0c14230a39266bacbc38a0e7156c7aa5bc74d33c13e068df9d8a99ec"}]
+--END--
+
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/input:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            unknown
+
+--START--
+ERROR: Invalid HASH 'unknown'. Allowed: md5sum, shasum, sha256sum, sha512sum
+--END--
+
+
+    #
+    # Check what happens if we don't provide an input.
+    #
+
+    podman run \
+        --rm \
+        ghcr.io/zarquan/heliophorus-androcles
+
+--START--
+ERROR: INPUT '/input' does not exist
+--END--
+
+
+    #
+    # Check we can direct it to use a different input filename.
+    #
+
+    podman run \
+        --rm \
+        --volume "${targetfile:?}:/different/path:ro,z" \
+        ghcr.io/zarquan/heliophorus-androcles \
+            shasum \
+            json \
+            /different/path
+
+    --START--
+    ERROR: INPUT '/input' does not exist
+    --END--
+
+
+# -----------------------------------------------------
+
+    #
+    # Some issues :
+    #
+
+    It doesn't recognise the INPUT parameter
+    ERROR: INPUT '/input' does not exist
+    1) Fix the issue
+
+    2) Change the error message from
+        ERROR: INPUT '/input' does not exist
+    to
+        ERROR: INPUT '/input' not found
+
+
+    Change the format and algorithm parameters to options rather than positional parameters.
+        --format json
+        --algorithm md5sum
+
+    So the use becomes
+        hashwrap [--format [json|native]] [--algorithm [md5sum|shasum|sha256sum|sha512sum] [input]
+
+    Add a 'pretty' format option which outputs pretty printed JSON.
+        [--format [json|pretty|native]]
+
+    Include the name of the algorithm in the output.
+        [{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+    becomes
+        [{"filename":"/input","algorithm":"md5sum","hash":"89b7e09c6528a9482002501915075593"}]
+
+    Depending on the format option generate machine readable JSON error messages as well.
+
+    Add a [PASS|FAIL] result to the output.
+        {
+        status: PASS,
+        result: [{"filename":"/input","hash":"89b7e09c6528a9482002501915075593"}]
+        }
+
+        {
+        status: FAIL,
+        messages: ["ERROR: INPUT '/input' not found"]
+        }
+
+    #
+    # but it works :-)
+    #
+
+
+
