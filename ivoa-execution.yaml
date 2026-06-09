@@ -53,5 +53,5 @@ data:
       description: |-
         A description of the input data that we want to be checksummed.
         Replace this element with a concrete data resource e.g.
-        A simple-data-resource element with a download URL.
+        a simple-data-resource element with a download URL.
 
